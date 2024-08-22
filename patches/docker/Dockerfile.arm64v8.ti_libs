@@ -1,0 +1,159 @@
+#  Copyright (C) 2021 Texas Instruments Incorporated - http://www.ti.com/
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#
+#    Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#    Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the
+#    distribution.
+#
+#    Neither the name of Texas Instruments Incorporated nor the names of
+#    its contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+#  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+#  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ARG ARCH
+ARG USE_PROXY
+ARG HTTP_PROXY
+ARG DEBIAN_FRONTEND=noninteractive
+ARG TIVA_LIB_VER
+ARG RPMSG_LIB_VER
+ARG SOC_NAME
+ARG ROS_DISTRO
+ARG SDK_VER
+ARG EDGEAI_VER
+ARG BASE_URL
+ARG SDK_VER_STR
+
+#=========================================================================
+FROM --platform=linux/${ARCH} robotics-sdk:${SDK_VER}-${ROS_DISTRO}-base as base-0
+
+#=========================================================================
+FROM base-0 AS base-1
+ARG USE_PROXY
+ENV USE_PROXY=${USE_PROXY}
+ARG HTTP_PROXY
+ENV http_proxy=${HTTP_PROXY}
+ENV https_proxy=${HTTP_PROXY}
+
+#=========================================================================
+FROM base-${USE_PROXY}
+ARG DEBIAN_FRONTEND
+ARG TIVA_LIB_VER
+ARG RPMSG_LIB_VER
+ARG SOC_NAME
+ARG EDGEAI_VER
+ENV SOC=$SOC_NAME
+ARG BASE_URL
+ARG SDK_VER_STR
+
+# setup proxy settings
+RUN /root/setup_proxy.sh
+
+# install vision_apps lib
+WORKDIR /root/scripts
+ADD install_vision_apps_lib.sh ./
+RUN ./install_vision_apps_lib.sh
+
+# install OS-RT libs
+ADD install_osrt_libs.sh ./
+RUN ./install_osrt_libs.sh
+
+# install TIDL runtime libs
+ADD install_tidl_libs.sh ./
+RUN ./install_tidl_libs.sh
+
+# install ti-rpmsg-char
+WORKDIR /opt
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libtool autoconf && \
+    git clone git://git.ti.com/rpmsg/ti-rpmsg-char.git --branch $RPMSG_LIB_VER --depth 1 --single-branch && \
+    cd /opt/ti-rpmsg-char && \
+    autoreconf -i && ./configure --host=aarch64-none-linux-gnu --prefix=/usr && \
+    make && make install && \
+    rm -rf /opt/ti-rpmsg-char && \
+    rm -rf /var/lib/apt/lists/*
+
+# git-clone edgeai-gst-apps
+WORKDIR /opt
+RUN git clone --single-branch --branch 10.00.00.08 https://github.com/TexasInstruments/edgeai-gst-apps.git
+
+# install apps-utils
+RUN /opt/edgeai-gst-apps/scripts/install_apps_utils.sh -b 10.00.00.08 && \
+    rm -rf /opt/edgeai-apps-utils
+
+# install dl-inferer
+RUN git clone --single-branch --branch 10.00.00.08 https://git.ti.com/cgit/edgeai/edgeai-dl-inferer && \
+    /opt/edgeai-dl-inferer/scripts/build_dl_inferer.sh && \
+    rm -rf /opt/edgeai-dl-inferer
+
+# install edgeai-tiovx-kernels
+RUN /opt/edgeai-gst-apps/scripts/install_tiovx_kernels.sh -b 10.00.00.08 && \
+    rm -rf /opt/edgeai-tiovx-kernels
+
+# install edgeai-tiovx-modules
+RUN /opt/edgeai-gst-apps/scripts/install_tiovx_modules.sh -b 10.00.00.08 && \
+    rm -rf /opt/edgeai-tiovx-modules
+
+# install edgeai-gst-plugins
+RUN /opt/edgeai-gst-apps/scripts/install_gst_plugins.sh -b 10.00.00.08 && \
+    rm -rf /opt/edgeai-gst-plugins
+
+# install python modules for DL RT
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-gi && \
+    python3 -m pip install --no-cache-dir PyYAML
+
+# install ti-gpio-cpp
+RUN /opt/edgeai-gst-apps/scripts/install_ti_gpio_libs.sh -b 10.00.00.08
+
+# build perf_stats tool
+RUN cd /opt/edgeai-gst-apps/scripts/perf_stats && \
+    mkdir build && cd build && cmake .. && make && \
+    cp /opt/edgeai-gst-apps/scripts/perf_stats/bin/Release/perf_stats /usr/local/bin/perf_stats
+
+# add scripts
+COPY entrypoint_arm64v8.sh /root/entrypoint.sh
+ADD ros_setup.sh /root/
+ADD set_aliases.sh /root/
+
+# .profile and .bashrc
+WORKDIR /root
+RUN echo "if [ -n \"$BASH_VERSION\" ]; then"     >  .profile && \
+    echo "    # include .bashrc if it exists"    >> .profile && \
+    echo "    if [ -f \"$HOME/.bashrc\" ]; then" >> .profile && \
+    echo "        . \"$HOME/.bashrc\""           >> .profile && \
+    echo "    fi"                                >> .profile && \
+    echo "fi"                                    >> .profile && \
+    echo "#!/bin/bash"                           >  .bashrc  && \
+    echo "export PS1=\"${debian_chroot:+($debian_chroot)}\u@j7-docker:\w\$ \"" >> .bashrc && \
+    echo "source $HOME/set_aliases.sh"                                         >> .bashrc
+
+# add labels
+LABEL TI_IMAGE_SOURCE=arm64v8/ros:humble-perception-jammy
+LABEL EDGEAI_VER=$EDGEAI_VER
+
+# workdir for ROS apps
+ARG PROJECT_HOME=j7ros_home
+ENV WORK_DIR=/root/${PROJECT_HOME}
+WORKDIR ${WORK_DIR}
+ENV ROS_WS=${WORK_DIR}/ros_ws
+
+# setup entrypoint
+ENTRYPOINT ["/root/entrypoint.sh"]

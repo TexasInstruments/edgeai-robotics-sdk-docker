@@ -6,6 +6,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+
+    env:
+      SDK_DIR: $HOME/work/robotics_sdk
+      REPO_URL: https://git.ti.com/git/processor-sdk-vision/jacinto_ros_perception.git
+      REPO_TAG: REL.10.00.00
+      platform: j784s4
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,25 +30,24 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Clone SDK repository
         run: |
-          git clone --branch REL.10.00.00 --single-branch https://git.ti.com/git/processor-sdk-vision/jacinto_ros_perception.git $HOME/work/robotics_sdk
+          git clone --branch $REPO_TAG --single-branch $REPO_URL $SDK_DIR
 
-      - name: Copy updated Makefile
+      - name: Copy updated Makefiles and script
         run: |
-          cp patches/docker/Makefile $HOME/work/robotics_sdk/docker/Makefile
-          cp patches/docker/Dockerfile.arm64v8.humble
-          cp patches/docker/Dockerfile.arm64v8.ti_libs
-          cp patches/docker/Dockerfile.x86_64.humble
+          cp patches/docker/Dockerfile* $SDK_DIR/docker
+          cp patches/docker/scripts/prepare_docker_build.sh $SDK_DIR/docker/scripts
 
       - name: Set up Docker build script
         run: |
           mkdir -p $HOME/j7ros_home
+          # cp docker_build_ros2.sh $HOME/j7ros_home
           cd $HOME/j7ros_home
-          ln -snf $HOME/work/robotics_sdk/docker/Makefile .
-          ARCH=arm64v8 SDK_DIR=$HOME/work/robotics_sdk make scripts
+          ln -snf $SDK_DIR/docker/Makefile .
+          SDK_DIR=$SDK_DIR make scripts
 
       - name: Verify script generation
         run: |
@@ -51,15 +57,9 @@ jobs:
       - name: Build Docker images
         run: |
           cd $HOME/j7ros_home
-          platforms=(j784s4)
-          for platform in ${platforms[@]}; do
-            SOC=$platform ./docker_build_ros2.sh
-          done
+          SOC=$platform ./docker_build_ros2.sh
 
       - name: Push Docker images
         run: |
-          platforms=(j784s4)
-          for platform in ${platforms[@]}; do
-            docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
-            docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
-          done
+          docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
+          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform

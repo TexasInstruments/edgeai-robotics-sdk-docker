@@ -9,7 +9,7 @@ GPUS             ?= n
 
 # Robotics SDK version
 SDK_VER          ?= 10.0.0
-EDGEAI_VER       ?= 10.0.0.7
+EDGEAI_VER       ?= 10.0.0.8
 TIVA_LIB_VER     ?= 10.0.0
 RPMSG_LIB_VER    ?= 0.6.7
 
@@ -134,6 +134,7 @@ ifeq ($(PLATFORM), j7)
 	@echo "DOCKER_TAG2=robotics-sdk:\$$SDK_VER-\$$ROS_DISTRO-\$$SOC" >> $(TGT_NAME)
 endif
 	@echo "export SDK_DIR=$(SDK_DIR)"                         >> $(TGT_NAME)
+	@echo "export ARCH=$(LINUX_ARCH)"                         >> $(TGT_NAME)
 	@echo "DOCKER_DIR=\$$SDK_DIR/docker"                      >> $(TGT_NAME)
 	@echo ": \"\$${USE_PROXY:=$(USE_PROXY)}\""                >> $(TGT_NAME)
 	@echo "# modify the server and proxy URLs as requied"     >> $(TGT_NAME)
@@ -158,7 +159,7 @@ endif
 	@echo "if [ \"\$$(docker images -q \$$DOCKER_TAG 2> /dev/null)\" == \"\" ]; then" >> $(TGT_NAME)
 	@echo "    docker build \\"                                   >> $(TGT_NAME)
 	@echo "        -t \$$DOCKER_TAG \\"                           >> $(TGT_NAME)
-	@echo "        --build-arg ARCH=$(LINUX_ARCH) \\"             >> $(TGT_NAME)
+	@echo "        --build-arg ARCH=\$$ARCH \\"                   >> $(TGT_NAME)
 	@echo "        --build-arg USE_PROXY=\$$USE_PROXY \\"         >> $(TGT_NAME)
 	@echo "        --build-arg REPO_LOCATION=\$$REPO_LOCATION \\" >> $(TGT_NAME)
 	@echo "        --build-arg HTTP_PROXY=\$$HTTP_PROXY \\"       >> $(TGT_NAME)
@@ -174,7 +175,7 @@ endif
 ifeq ($(PLATFORM), j7)
 	@echo "docker build \\"                                   >> $(TGT_NAME)
 	@echo "    -t \$$DOCKER_TAG2 \\"                          >> $(TGT_NAME)
-	@echo "    --build-arg ARCH=$(LINUX_ARCH) \\"             >> $(TGT_NAME)
+	@echo "    --build-arg ARCH=\$$ARCH \\"                   >> $(TGT_NAME)
 	@echo "    --build-arg USE_PROXY=\$$USE_PROXY \\"         >> $(TGT_NAME)
 	@echo "    --build-arg HTTP_PROXY=\$$HTTP_PROXY \\"       >> $(TGT_NAME)
 	@echo "    --build-arg TIVA_LIB_VER=\$$TIVA_LIB_VER \\"   >> $(TGT_NAME)

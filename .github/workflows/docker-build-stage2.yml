@@ -16,6 +16,8 @@ env:
   REPO_TAG: REL.10.00.00
   # only for testing
   REPO_BRANCH: 10_00_rc4
+  SDK_VER: 10.0.0
+  GH_TOKEN: ${{ secrets.env_PAT }}
 
 jobs:
   build:
@@ -43,7 +45,7 @@ jobs:
       - name: Clone SDK repository
         run: |
           # git clone --branch ${{ env.REPO_TAG }} --single-branch ${{ env.REPO_URL }} ${{ env.SDK_DIR }}
-          gh repo clone --branch ${{ env.REPO_BRANCH }} robotics_sdk ${{ env.SDK_DIR }}
+          gh repo clone robotics_sdk ${{ env.SDK_DIR }} -- --branch ${{ env.REPO_BRANCH }}
 
       - name: Set up Docker build script
         run: |
@@ -63,12 +65,19 @@ jobs:
           ls -l $HOME/j7ros_home
           more $HOME/j7ros_home/docker_build.sh
 
-      - name: Build Docker images
+      - name: Pull Docker image
+        run: |
+          docker_tag=robotics-sdk:${{ env.SDK_VER }}-humble-base
+          docker pull ghcr.io/${{ github.repository }}/$docker_tag
+          docker tag ghcr.io/${{ github.repository }}/$docker_tag $docker_tag
+
+      - name: Build Docker image
         run: |
           cd $HOME/j7ros_home
           SOC=${{ inputs.soc }} ./docker_build.sh stage2_only
 
-      - name: Push Docker images
+      - name: Push Docker image
         run: |
-          docker tag robotics-sdk:10.0.0-humble-${{ inputs.soc }} ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-${{ inputs.soc }}
-          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-${{ inputs.soc }}
+          docker_tag=robotics-sdk:${{ env.SDK_VER }}-humble-${{ inputs.soc }}
+          docker tag $docker_tag ghcr.io/${{ github.repository }}/$docker_tag
+          docker push ghcr.io/${{ github.repository }}/$docker_tag

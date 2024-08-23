@@ -1,4 +1,4 @@
-name: docker-build-all-platforms
+name: docker-build-all-targets
 
 on:
   workflow_dispatch:

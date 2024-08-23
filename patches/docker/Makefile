@@ -31,29 +31,21 @@ ifeq ($(ROS_VER), 1)
 	EXCLUDE       = ros2
 endif
 
-# set PLATFORM based on "uname -m"
-PLATFORM         ?= j7
-ARCH             ?= arm64v8
-ifeq ($(shell uname -m), x86_64)
-	PLATFORM     ?= pc
-	ARCH         ?= x86_64
-endif
-
+# set PLATFORM: j7 (target) or pc (visualization PC)
+PLATFORM ?= j7
 ifeq ($(PLATFORM), j7)
-	LINUX_ARCH = arm64
+	ARCH       ?= arm64v8
+	LINUX_ARCH ?= arm64
+	SDK_DIR    ?= /opt/$(REPO_NAME)
 endif
 ifeq ($(PLATFORM), pc)
-	LINUX_ARCH = amd64
+	ARCH       ?= x86_64
+	LINUX_ARCH ?= amd64
+	SDK_DIR    ?= $(WORK_PATH_HOST)/ros_ws/src/$(REPO_NAME)
 endif
 
-WORK_PATH_HOST    = $(HOME)/$(WORK_DIR)
-ifeq ($(PLATFORM), j7)
-	SDK_DIR      ?= /opt/$(REPO_NAME)
-endif
-ifeq ($(PLATFORM), pc)
-	SDK_DIR      ?= $(WORK_PATH_HOST)/ros_ws/src/$(REPO_NAME)
-endif
-DATA_DIR          = $(WORK_PATH_HOST)/data
+WORK_PATH_HOST = $(HOME)/$(WORK_DIR)
+DATA_DIR       = $(WORK_PATH_HOST)/data
 
 ifeq ($(ROS_DOCKER_INTERNAL),)
 	USE_PROXY = 0

@@ -1,17 +1,17 @@
-name: Build and Publish the Robotics SDK Docker Image
+name: docker-build-am68a
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build_am68a:
     runs-on: ubuntu-22.04
 
     env:
       SDK_DIR: $HOME/work/robotics_sdk
       REPO_URL: https://git.ti.com/git/processor-sdk-vision/jacinto_ros_perception.git
       REPO_TAG: REL.10.00.00
-      platform: j784s4
+      platform: j721s2
 
     steps:
       - name: Checkout repository
@@ -38,16 +38,22 @@ jobs:
 
       - name: Copy updated Makefiles and script
         run: |
+          cp patches/docker/Makefile $SDK_DIR/docker
           cp patches/docker/Dockerfile* $SDK_DIR/docker
           cp patches/docker/scripts/prepare_docker_build.sh $SDK_DIR/docker/scripts
 
       - name: Set up Docker build script
         run: |
           mkdir -p $HOME/j7ros_home
-          # cp docker_build_ros2.sh $HOME/j7ros_home
           cd $HOME/j7ros_home
-          ln -snf $SDK_DIR/docker/Makefile .
-          SDK_DIR=$SDK_DIR make scripts
+          makefile_path=$SDK_DIR/docker/Makefile
+          if [ -f $makefile_path ]; then
+            ln -snf $SDK_DIR/docker/Makefile .
+          else
+            echo "Error: $makefile_path does not exist"
+            exit 1
+          fi
+          PLATFORM=j7 SDK_DIR=$SDK_DIR make scripts
 
       - name: Verify script generation
         run: |
@@ -57,9 +63,13 @@ jobs:
       - name: Build Docker images
         run: |
           cd $HOME/j7ros_home
+          docker pull ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
+          docker tag ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base robotics-sdk:10.0.0-humble-base
           SOC=$platform ./docker_build_ros2.sh
 
       - name: Push Docker images
         run: |
+          docker tag robotics-sdk:10.0.0-humble-base ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
+          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
           docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
           docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform

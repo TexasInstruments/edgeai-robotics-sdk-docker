@@ -20,7 +20,7 @@ fi
 echo "USE_PROXY = $USE_PROXY"
 echo "REPO_LOCATION = $REPO_LOCATION"
 DST_DIR=/home/runner/j7ros_home/docker_src
-EDGEAI_VER=10.0.0.7
+EDGEAI_VER=10.0.0.8
 TIVA_LIB_VER=10.0.0
 RPMSG_LIB_VER=0.6.7
 : "${BASE_URL:=https://software-dl.ti.com/jacinto7/esd/robotics-sdk/10_00_00/deps}"

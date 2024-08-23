@@ -67,6 +67,8 @@ jobs:
 
       - name: Push Docker images
         run: |
+          docker tag robotics-sdk:10.0.0-humble-base ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
+          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
           docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
           docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
 
@@ -137,8 +139,6 @@ jobs:
 
       - name: Push Docker images
         run: |
-          docker tag robotics-sdk:10.0.0-humble-base ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
-          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
           docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
           docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
 
@@ -209,8 +209,6 @@ jobs:
 
       - name: Push Docker images
         run: |
-          docker tag robotics-sdk:10.0.0-humble-base ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
-          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
           docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
           docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
 
@@ -281,8 +279,6 @@ jobs:
 
       - name: Push Docker images
         run: |
-          docker tag robotics-sdk:10.0.0-humble-base ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
-          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
           docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
           docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
 
@@ -353,7 +349,5 @@ jobs:
 
       - name: Push Docker images
         run: |
-          docker tag robotics-sdk:10.0.0-humble-base ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
-          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
           docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
           docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform

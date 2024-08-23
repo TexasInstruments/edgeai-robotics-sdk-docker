@@ -1,17 +1,25 @@
-name: docker-build-am69a
+name: docker-build-stage1 reusable
 
 on:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      soc:
+        required: true
+        type: string
+    secrets:
+      env_PAT:
+        required: true
+
+env:
+  SDK_DIR: /home/runner/work/robotics_sdk
+  REPO_URL: https://git.ti.com/git/processor-sdk-vision/jacinto_ros_perception.git
+  REPO_TAG: REL.10.00.00
+  # only for testing
+  REPO_BRANCH: 10_00_rc4
 
 jobs:
-  build_am69a:
+  build:
     runs-on: ubuntu-22.04
-
-    env:
-      SDK_DIR: /home/runner/work/robotics_sdk
-      REPO_URL: https://git.ti.com/git/processor-sdk-vision/jacinto_ros_perception.git
-      REPO_TAG: REL.10.00.00
-      platform: j784s4
 
     steps:
       - name: Checkout repository
@@ -30,44 +38,39 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.env_PAT }}
 
       - name: Clone SDK repository
         run: |
-          git clone --branch $REPO_TAG --single-branch $REPO_URL $SDK_DIR
-
-      - name: Copy updated Makefiles and script
-        run: |
-          cp patches/docker/Makefile $SDK_DIR/docker
-          cp patches/docker/Dockerfile* $SDK_DIR/docker
-          cp patches/docker/scripts/prepare_docker_build.sh $SDK_DIR/docker/scripts
+          # git clone --branch ${{ env.REPO_TAG }} --single-branch ${{ env.REPO_URL }} ${{ env.SDK_DIR }}
+          gh repo clone --branch ${{ env.REPO_BRANCH }} robotics_sdk ${{ env.SDK_DIR }}
 
       - name: Set up Docker build script
         run: |
           mkdir -p $HOME/j7ros_home
           cd $HOME/j7ros_home
-          makefile_path=$SDK_DIR/docker/Makefile
+          makefile_path=${{ env.SDK_DIR }}/docker/Makefile
           if [ -f $makefile_path ]; then
-            ln -snf $SDK_DIR/docker/Makefile .
+            ln -snf $makefile_path .
           else
             echo "Error: $makefile_path does not exist"
             exit 1
           fi
-          PLATFORM=j7 SDK_DIR=$SDK_DIR make scripts
+          PLATFORM=j7 SDK_DIR=${{ env.SDK_DIR }} make scripts
 
       - name: Verify script generation
         run: |
           ls -l $HOME/j7ros_home
-          more $HOME/j7ros_home/docker_build_ros2.sh
+          more $HOME/j7ros_home/docker_build.sh
 
       - name: Build Docker images
         run: |
           cd $HOME/j7ros_home
-          SOC=$platform ./docker_build_ros2.sh
+          SOC=${{ inputs.soc }} ./docker_build.sh stage1_only
 
       - name: Push Docker images
         run: |
           docker tag robotics-sdk:10.0.0-humble-base ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
           docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-base
-          docker tag robotics-sdk:10.0.0-humble-$platform ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
-          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-$platform
+          docker tag robotics-sdk:10.0.0-humble-${{ inputs.soc }} ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-${{ inputs.soc }}
+          docker push ghcr.io/${{ github.repository }}/robotics-sdk:10.0.0-humble-${{ inputs.soc }}

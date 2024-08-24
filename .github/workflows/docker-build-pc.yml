@@ -32,8 +32,8 @@ jobs:
 
       - name: Clone SDK repository
         run: |
-          # git clone --branch ${{ env.REPO_TAG }} --single-branch ${{ env.REPO_URL }} ${{ env.SDK_DIR }}
-          gh repo clone robotics_sdk ${{ env.SDK_DIR }} -- --branch ${{ env.REPO_BRANCH }}
+          git clone --branch ${{ env.REPO_TAG }} --single-branch ${{ env.REPO_URL }} ${{ env.SDK_DIR }}
+          # gh repo clone robotics_sdk ${{ env.SDK_DIR }} -- --branch ${{ env.REPO_BRANCH }}
 
       - name: Set up Docker build script
         run: |

@@ -15,7 +15,7 @@ env:
   REPO_URL: https://git.ti.com/git/processor-sdk-vision/jacinto_ros_perception.git
   REPO_TAG: REL.10.00.00
   # only for testing
-  REPO_BRANCH: 10_00_rc4
+  # REPO_BRANCH: 10_00_rc4
   SDK_VER: 10.0.0
   GH_TOKEN: ${{ secrets.env_PAT }}
 
@@ -77,6 +77,18 @@ jobs:
         run: |
           cd $HOME/j7ros_home
           SOC=${{ inputs.soc }} ./docker_build.sh stage2_only
+
+      - name: Add a Docker label
+        run: |
+          docker_tag=robotics-sdk:${{ env.SDK_VER }}-humble-${{ inputs.soc }}
+          docker images
+          if [ "$(docker images -q $docker_tag 2> /dev/null)" == "" ]; then
+            echo "Docker image $docker_tag does not exist."
+            exit 1
+          else
+            echo "FROM --platform=linux/arm64 $docker_tag" | docker build --label org.opencontainers.image.source=https://github.com/${{ github.repository }} -t $docker_tag -
+            docker inspect --format='{{json .Config.Labels}}' $docker_tag
+          fi
 
       - name: Push Docker image
         run: |

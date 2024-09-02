@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  SDK_DIR: /home/runner/work/robotics_sdk
+  SDK_DIR: /home/runner/j7ros_home/ros_ws/src/robotics_sdk
   REPO_URL: https://git.ti.com/git/processor-sdk-vision/jacinto_ros_perception.git
   REPO_TAG: REL.10.00.00
   # only for testing
@@ -32,8 +32,16 @@ jobs:
 
       - name: Clone SDK repository
         run: |
+          mkdir -p $HOME/j7ros_home/ros_ws/src
+          cd $HOME/j7ros_home/ros_ws/src
           git clone --branch ${{ env.REPO_TAG }} --single-branch ${{ env.REPO_URL }} ${{ env.SDK_DIR }}
           # gh repo clone robotics_sdk ${{ env.SDK_DIR }} -- --branch ${{ env.REPO_BRANCH }}
+          SDK_DIR=$SDK_DIR $SDK_DIR/scripts/install_gscam.sh
+          SDK_DIR=$SDK_DIR $SDK_DIR/scripts/install_mmwave_rospkg.sh 2
+          # updated entrypoint*.sh
+          # TODO: update entrypoint*.sh directly in the robotics_sdk repo
+          sed -i '/exec "\$@"/i SETUP_FILE="/opt/ros/robotics_sdk_install/setup.bash"\nif [ -f "$SETUP_FILE" ]; then\n    source "$SETUP_FILE"\nfi\n\n' \
+            ${{ env.SDK_DIR }}/docker/entrypoint_viz.sh
 
       - name: Set up Docker build script
         run: |
@@ -58,6 +66,27 @@ jobs:
           cd $HOME/j7ros_home
           ./docker_build.sh
 
+      - name: Build and install the SDK ROS nodes
+        run: |
+          cd $HOME/j7ros_home
+          # create docker_run_commit.sh
+          script_file=docker_run_commit.sh
+          cp docker_run.sh $script_file
+          sed -i 's/docker run -it --rm \\/docker run --platform linux\/amd64 \\/' $script_file
+          sed -i '/xhost +local:$USER/d' $script_file
+          sed -i '/xhost -local:$USER/d' $script_file
+          echo 'CONTAINER_ID=$(docker ps -a --filter "ancestor=$DOCKER_TAG" --format "{{.ID}}" | head -n 1)' >> $script_file
+          echo 'docker tag $DOCKER_TAG ${DOCKER_TAG}-org' >> $script_file
+          echo 'docker commit $CONTAINER_ID ${DOCKER_TAG}' >> $script_file
+          more $script_file
+          # build and install the SDK ROS nodes
+          ./docker_run_commit.sh colcon build \
+            --base-paths /root/j7ros_home/ros_ws/src/robotics_sdk/ros2 \
+            --cmake-force-configure \
+            --packages-skip ti_external ti_vision_cnn ti_sde ti_estop ti_vl ti_objdet_range ti_ros_gst_plugins \
+            --install-base /opt/ros/robotics_sdk_install
+          docker images
+
       - name: Add a Docker label
         run: |
           docker_tag=robotics-sdk:${{ env.SDK_VER }}-humble-viz
@@ -66,7 +95,8 @@ jobs:
             echo "Docker image $docker_tag does not exist."
             exit 1
           else
-            echo "FROM --platform=linux/amd64 $docker_tag" | docker build --label org.opencontainers.image.source=https://github.com/${{ github.repository }} -t $docker_tag -
+            echo "FROM --platform=linux/amd64 $docker_tag" | \
+              docker build --label org.opencontainers.image.source=https://github.com/${{ github.repository }} -t $docker_tag -
             docker inspect --format='{{json .Config.Labels}}' $docker_tag
           fi
 

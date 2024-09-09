@@ -38,10 +38,6 @@ jobs:
           # gh repo clone robotics_sdk ${{ env.SDK_DIR }} -- --branch ${{ env.REPO_BRANCH }}
           SDK_DIR=$SDK_DIR $SDK_DIR/scripts/install_gscam.sh
           SDK_DIR=$SDK_DIR $SDK_DIR/scripts/install_mmwave_rospkg.sh 2
-          # updated entrypoint*.sh
-          # TODO: update entrypoint*.sh directly in the robotics_sdk repo
-          sed -i '/exec "\$@"/i SETUP_FILE="/opt/ros/robotics_sdk_install/setup.bash"\nif [ -f "$SETUP_FILE" ]; then\n    source "$SETUP_FILE"\nfi\n\n' \
-            ${{ env.SDK_DIR }}/docker/entrypoint_viz.sh
 
       - name: Set up Docker build script
         run: |
